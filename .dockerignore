@@ -1,0 +1,15 @@
+target/
+.git/
+.idea/
+.vscode/
+logs/
+*.log
+.DS_Store
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+postman/
+.junie/
+HELP.md

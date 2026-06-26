@@ -1,0 +1,86 @@
+{
+  "info": {
+    "name": "Student API",
+    "_postman_id": "student-api-collection",
+    "description": "CRUD REST API for managing students",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "studentId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/healthcheck"
+      }
+    },
+    {
+      "name": "Create Student",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"Ayush\",\n  \"lastName\": \"Yadav\",\n  \"email\": \"ayush@example.com\",\n  \"age\": 22\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/students"
+      }
+    },
+    {
+      "name": "Get All Students",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/students"
+      }
+    },
+    {
+      "name": "Get Student By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/students/{{studentId}}"
+      }
+    },
+    {
+      "name": "Update Student",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"Ayush\",\n  \"lastName\": \"Kumar\",\n  \"email\": \"ayush.kumar@example.com\",\n  \"age\": 23\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/students/{{studentId}}"
+      }
+    },
+    {
+      "name": "Delete Student",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/students/{{studentId}}"
+      }
+    }
+  ]
+}

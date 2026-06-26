@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="student-api"/>
+    <springProperty scope="context" name="LOG_LEVEL" source="logging.level.root" defaultValue="INFO"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%level service=${APP_NAME} logger=%logger{36} thread=%thread msg="%msg"%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="com.example.student_api" level="${LOG_LEVEL}"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+
+</configuration>
