@@ -1,0 +1,82 @@
+name: student-api
+
+services:
+  postgres:
+    container_name: student-api-postgres
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - student-api-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  flyway:
+    container_name: student-api-flyway
+    image: flyway/flyway:10.20.1-alpine
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - -url=jdbc:postgresql://postgres:5432/${DB_NAME}
+      - -user=${DB_USERNAME}
+      - -password=${DB_PASSWORD}
+      - -connectRetries=60
+      - migrate
+    volumes:
+      - ./src/main/resources/db/migration:/flyway/sql:ro
+    networks:
+      - student-api-network
+    profiles:
+      - tools
+
+  api:
+    container_name: student-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${IMAGE_NAME:-student-api}:${IMAGE_TAG:-1.0.0}
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_PORT: 8080
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "${APP_PORT}:8080"
+    networks:
+      - student-api-network
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+networks:
+  student-api-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: student-api-postgres-data

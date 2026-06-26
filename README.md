@@ -17,6 +17,7 @@ Production-ready Student CRUD REST API built with **Java 21**, **Spring Boot 3**
 - Mockito
 - SLF4J + Logback
 - Docker
+- Docker Compose
 
 ## Architecture
 
@@ -40,25 +41,17 @@ PostgreSQL
 ```
 student-api/
 ├── src/main/java/com/example/student_api/
-│   ├── config/
-│   ├── controller/
-│   ├── dto/
-│   ├── entity/
-│   ├── exception/
-│   ├── logging/
-│   ├── mapper/
-│   ├── repository/
-│   ├── service/
-│   │   └── impl/
-│   ├── util/
-│   └── StudentApiApplication.java
 ├── src/main/resources/
 │   ├── db/migration/
 │   ├── application.yml
 │   └── logback-spring.xml
 ├── src/test/
+├── scripts/
+│   ├── wait-for-db.sh
+│   └── check-postgres.sh
 ├── postman/
 ├── Dockerfile
+├── docker-compose.yml
 ├── .dockerignore
 ├── README.md
 ├── Makefile
@@ -66,140 +59,99 @@ student-api/
 └── .env.example
 ```
 
-## Local Setup
+## Prerequisites
 
-### Prerequisites
+- Docker Desktop
+- Docker Compose
+- GNU Make
+
+Optional (for native Java development without Docker):
 
 - Java 21
 - Maven 3.9+
-- PostgreSQL 14+
-- Docker (for containerized deployment)
 
-### PostgreSQL Setup
+## Local Setup
 
-```sql
-CREATE DATABASE studentdb;
-CREATE USER studentuser WITH ENCRYPTED PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE studentdb TO studentuser;
-```
-
-### Environment Variables
-
-Copy `.env.example` and export the variables before running the application:
+One-command setup for the full stack (PostgreSQL + Flyway migrations + Spring Boot API):
 
 ```bash
+git clone <repository>
+cd student-api
 cp .env.example .env
-export $(grep -v '^#' .env | xargs)
+make up
 ```
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_NAME` | Database name | `studentdb` |
-| `DB_USERNAME` | Database user | `studentuser` |
-| `DB_PASSWORD` | Database password | `password` |
-| `SERVER_PORT` | HTTP server port | `8080` |
-| `SPRING_PROFILES_ACTIVE` | Spring profile | `dev` |
-| `LOG_LEVEL` | Root log level | `INFO` |
+Within a few minutes you will have:
 
-## Running Migrations
+- PostgreSQL running with persistent storage
+- Flyway migrations applied
+- Spring Boot API running in Docker
+- Health check at `http://localhost:8080/healthcheck`
 
-Flyway runs automatically on application startup. To run migrations manually:
+### Start Only Database
+
+```bash
+make db-up
+```
+
+### Run Migrations
 
 ```bash
 make migrate
 ```
 
-Or:
+Flyway skips migrations that have already been applied.
 
-```bash
-./mvnw flyway:migrate
-```
-
-## Running the Application
-
-```bash
-make install
-make run
-```
-
-Or:
-
-```bash
-./mvnw spring-boot:run
-```
-
-The API will be available at `http://localhost:8080`.
-
-## Docker
-
-The application can run entirely from a Docker image using a multi-stage build. Configuration is supplied at runtime via environment variables — no secrets are baked into the image.
-
-### Prerequisites
-
-- Docker
-- PostgreSQL (running on the host or another container)
-
-Ensure PostgreSQL is accessible from the container. On macOS and Windows, use `host.docker.internal` as `DB_HOST` to reach PostgreSQL on the host machine.
-
-### Build Image
+### Build Docker Image
 
 ```bash
 make docker-build
 ```
 
-Or build with an explicit semantic version tag:
+Builds a semantic version tag such as `student-api:1.0.0`.
+
+### Run API
 
 ```bash
-docker build -t student-api:1.0.0 .
+make api-up
 ```
 
-Supported tags follow semantic versioning, for example:
+Starts the API container and connects it to PostgreSQL over the Docker Compose network.
 
-- `student-api:1.0.0`
-- `student-api:1.0.1`
-- `student-api:1.1.0`
-
-Override the tag when building:
+### Stop Everything
 
 ```bash
-make docker-build IMAGE_TAG=1.0.1
+make down
 ```
 
-### Run Container
+Stops and removes all containers and networks. Database data persists in the named Docker volume.
 
-Pass database and server configuration through environment variables:
+## Environment Variables
+
+Copy `.env.example` to `.env` before running any Make target:
 
 ```bash
-docker run \
-  -p 8080:8080 \
-  -e DB_HOST=host.docker.internal \
-  -e DB_PORT=5432 \
-  -e DB_NAME=studentdb \
-  -e DB_USERNAME=studentuser \
-  -e DB_PASSWORD=password \
-  -e SERVER_PORT=8080 \
-  -e SPRING_PROFILES_ACTIVE=prod \
-  student-api:1.0.0
+cp .env.example .env
 ```
 
-Or use the Makefile target (runs detached):
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DB_HOST` | PostgreSQL host (`postgres` inside Docker Compose) | `postgres` |
+| `DB_PORT` | PostgreSQL port exposed on the host | `5432` |
+| `DB_NAME` | Database name | `studentdb` |
+| `DB_USERNAME` | Database user | `studentuser` |
+| `DB_PASSWORD` | Database password | `password` |
+| `APP_PORT` | API port on the host | `8080` |
+| `SPRING_PROFILES_ACTIVE` | Spring profile | `dev` |
+| `LOG_LEVEL` | Root log level | `INFO` |
+| `IMAGE_NAME` | Docker image name | `student-api` |
+| `IMAGE_TAG` | Docker image tag | `1.0.0` |
 
-```bash
-make docker-run
-```
+No credentials or ports are hardcoded in the application. All configuration is supplied through environment variables.
 
-Stop and remove the container:
+## Test API
 
-```bash
-make docker-stop
-make docker-clean
-```
-
-### Verify
-
-Health check:
+### Health Check
 
 ```http
 GET http://localhost:8080/healthcheck
@@ -214,18 +166,35 @@ Expected response:
 }
 ```
 
-Test CRUD endpoints at `http://localhost:8080/api/v1/students` or import the Postman collection.
+### CRUD APIs
+
+```http
+POST   /api/v1/students
+GET    /api/v1/students
+GET    /api/v1/students/{id}
+PUT    /api/v1/students/{id}
+DELETE /api/v1/students/{id}
+```
+
+Import `postman/Student-API.postman_collection.json` for ready-to-use requests.
+
+## Native Java Development (Optional)
+
+If you prefer running the API outside Docker:
+
+```bash
+cp .env.example .env
+# Set DB_HOST=localhost and start PostgreSQL locally
+make db-up
+make migrate
+make install
+make run
+```
 
 ## Running Tests
 
 ```bash
 make test
-```
-
-Or:
-
-```bash
-./mvnw test
 ```
 
 ## API Documentation
@@ -273,31 +242,6 @@ Content-Type: application/json
 }
 ```
 
-### Sample Response — Health Check
-
-```json
-{
-  "status": "UP",
-  "service": "student-api"
-}
-```
-
-### Sample Error Response — Validation
-
-```json
-{
-  "timestamp": "2026-06-26T10:30:00",
-  "status": 400,
-  "error": "Validation Failed",
-  "message": "Request validation failed",
-  "path": "/api/v1/students",
-  "errors": {
-    "firstName": "First name is required",
-    "email": "Invalid email format"
-  }
-}
-```
-
 ### HTTP Status Codes
 
 | Code | Meaning |
@@ -310,23 +254,33 @@ Content-Type: application/json
 | `409` | Duplicate email / database conflict |
 | `500` | Internal server error |
 
-## Postman Collection
-
-Import `postman/Student-API.postman_collection.json` into Postman. The collection includes all CRUD endpoints and the health check with sample request bodies.
-
 ## Makefile Commands
 
 | Command | Description |
 |---------|-------------|
-| `make install` | Build the project (skip tests) |
-| `make migrate` | Run Flyway migrations |
-| `make run` | Start the application |
+| `make up` | Start PostgreSQL, run migrations, build image, start API |
+| `make down` | Stop and remove all containers and networks |
+| `make db-up` | Start PostgreSQL only |
+| `make db-down` | Stop PostgreSQL |
+| `make migrate` | Run Flyway migrations via Docker |
+| `make docker-build` | Build Docker image (`student-api:1.0.0`) |
+| `make api-up` | Build image and start API container |
+| `make api-down` | Stop API container |
+| `make docker-image-clean` | Remove the Docker image |
+| `make install` | Build the project with Maven (skip tests) |
+| `make run` | Run the API locally with Maven |
 | `make test` | Run unit tests |
-| `make clean` | Clean build artifacts |
-| `make docker-build` | Build Docker image (`student-api:1.0.0` by default) |
-| `make docker-run` | Run container with environment variables |
-| `make docker-stop` | Stop the running container |
-| `make docker-clean` | Stop container and remove container/image |
+| `make clean` | Clean Maven build artifacts |
+
+## Docker Compose Services
+
+| Service | Description |
+|---------|-------------|
+| `postgres` | PostgreSQL 16 Alpine with persistent volume and health check |
+| `flyway` | One-off migration runner (invoked by `make migrate`) |
+| `api` | Spring Boot Student API (multi-stage Docker build) |
+
+Services communicate over a dedicated bridge network. The API connects to PostgreSQL using the service hostname `postgres`.
 
 ## Logging
 
